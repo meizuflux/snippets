@@ -7,6 +7,7 @@ requires-python = ">=3.11"
 dependencies = [
     "casu",
     "muffin>=0.102.3",
+    "psqlpy>=0.9.0",
     "uvicorn>=0.34.0",
 ]
 
