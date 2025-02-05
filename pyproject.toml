@@ -5,11 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "casu",
-    "muffin>=0.102.3",
+    "argon2-cffi>=23.1.0",
     "psqlpy>=0.9.0",
+    "sanic>=24.12.0",
     "uvicorn>=0.34.0",
 ]
-
-[tool.uv.sources]
-casu = { path = "../casu", editable = true }

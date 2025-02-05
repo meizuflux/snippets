@@ -1,9 +1,9 @@
-from casu import Blueprint
-import muffin
+from sanic.response import json
+from sanic import Blueprint, HTTPResponse, Request
 
 
-bp = Blueprint("/")
+bp = Blueprint("base", url_prefix="/")
 
-@bp.route("/", methods="GET")
-async def index(request: muffin.Request) -> muffin.Response:
-    return muffin.Response("hello world")
+@bp.route("/")
+async def index(request: Request) -> HTTPResponse:
+    return json({"message": "hello wordl"})
