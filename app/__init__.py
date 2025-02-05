@@ -1,7 +1,7 @@
 from psqlpy import ConnectionPool
 from sanic import Sanic
 
-from app.blueprints import base, api
+from app.blueprints import base, auth, api
 
 
 async def before_request(request):
@@ -20,6 +20,9 @@ async def after_shutdown(app, loop):
 def app_factory():
     app = Sanic(__name__)
 
+    # TODO: change this to not such a crappy templating thingy
+    app.config.TEMPLATING_ENABLE_ASYNC = True
+
     app.before_server_start(before_startup)
     app.after_server_stop(after_shutdown)
 
@@ -28,6 +31,7 @@ def app_factory():
     
     blueprints = (
         base,
+        auth,
         api,
     )
 

@@ -2,7 +2,6 @@ CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email TEXT UNIQUE,
     password TEXT, -- hashed with argon2
-    api_key TEXT,
     session_duration BIGINT NOT NULL DEFAULT 86400,
     joined TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')
 );
@@ -16,6 +15,14 @@ CREATE TABLE IF NOT EXISTS sessions (
     browser TEXT DEFAULT 'Unknown',
     os TEXT DEFAULT 'Unknown'
 );
+
+CREATE TABLE IF NOT EXISTS api_keys (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+    key TEXT NOT NULL, -- hashed so as not to be stored
+    title TEXT
+)
 
 CREATE OR REPLACE FUNCTION delete_old_sessions() RETURNS TRIGGER AS $$
 BEGIN

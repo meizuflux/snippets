@@ -20,7 +20,7 @@ async def create_user(pool: ConnectionPool, email: str, password: str):
     return user_id
 
 
-bp = Blueprint("auth", url_prefix="/auth", version=1)
+bp = Blueprint("api_auth", url_prefix="/auth", version=1)
 
 # TODO: figure out code duplication for form data but also json being sent
 # perhaps from a content-type header? 

@@ -1,17 +1,23 @@
 
 from functools import wraps
 from typing import Callable
+from uuid import UUID
 
+from psqlpy import Connection
 from sanic import HTTPResponse, Request, json
 
-
-async def logged_in(request, *, session: bool = False, api_key: bool = False) -> bool:
+# TODO: we need to handle getting a connection here, ideally then pass the connection to the request
+async def logged_in(conn: Connection, request: Request, *, session: bool = False, api_key: bool = False) -> bool:
     is_authorized = False
 
     if session:
         passed_session = request.cookies.get("session")
+        print(passed_session)
         if passed_session:
-            is_authorized = await validate_session(passed_session)
+            user_id = await conn.fetch_val("SELECT user_id FROM sessions WHERE token = $1", [UUID(passed_session)])
+            if user_id:
+                is_authorized = True
+                request.ctx.user_id = user_id
 
     if not is_authorized and api_key:
         passed_api_key = request.headers.get("apiKey")
@@ -36,10 +42,12 @@ def protected(*, session: bool = True, api_key: bool = True) -> Callable[[Callab
     def decorator(f):
         @wraps(f)
         async def decorated_function(request, *args, **kwargs):
-            is_authorized = await logged_in(request, session=session, api_key=api_key)
+            conn = await request.app.ctx.db_pool.connection()
+
+            is_authorized = await logged_in(conn, request, session=session, api_key=api_key)
 
             if is_authorized:
-                response = await f(request, *args, **kwargs)
+                response = await f(request, conn, *args, **kwargs)
                 return response
             else:
                 return json({"status": "not_authorized"}, 403)
