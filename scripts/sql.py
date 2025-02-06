@@ -1,7 +1,7 @@
 import argparse
 import asyncio
 
-from psqlpy import connect
+from asyncpg import connect
 
 
 async def main():
@@ -12,7 +12,7 @@ async def main():
     args = parser.parse_args()
 
 
-    pool = connect(dsn="postgres://postgres:test@localhost:5432/snippets")
+    pool = await connect(dsn="postgres://postgres:test@localhost:5432/snippets")
 
     if not args.file:
         print("You must specify a file")
@@ -23,8 +23,8 @@ async def main():
         with open(args.file, encoding="utf-8") as file:
             content = file.read()
 
-        connection = await pool.connection()
-        await connection.execute_batch(content)
+        async with pool.acquire() as connection:
+            await connection.execute(content)
 
 
     pool.close()

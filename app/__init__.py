@@ -1,4 +1,4 @@
-from psqlpy import ConnectionPool
+import asyncpg
 from sanic import Sanic
 
 from app.blueprints import base, auth, api
@@ -9,9 +9,8 @@ async def before_request(request):
     ...
 
 async def before_startup(app, loop):
-    app.ctx.db_pool = ConnectionPool(
+    app.ctx.db_pool = await asyncpg.create_pool(
         dsn="postgres://postgres:test@localhost:5432/snippets",
-        max_db_pool_size=10,
     )
 
 async def after_shutdown(app, loop):

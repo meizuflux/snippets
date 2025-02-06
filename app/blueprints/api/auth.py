@@ -1,4 +1,4 @@
-from psqlpy import ConnectionPool
+from asyncpg import Pool
 from sanic.response import json, HTTPResponse
 from sanic.request import Request
 from sanic import Blueprint
@@ -7,15 +7,15 @@ from argon2 import PasswordHasher
 
 ph = PasswordHasher()
 
-async def create_user(pool: ConnectionPool, email: str, password: str):
+async def create_user(pool: Pool, email: str, password: str):
     hashed_password = ph.hash(password)
 
-    connection = await pool.connection()
-    user_id = await connection.fetch_val("""
+    async with pool.acquire() as connection:
+        user_id = await connection.fetchval("""
             INSERT INTO users (email, password)
             VALUES ($1, $2)
             RETURNING id;
-        """, [email, hashed_password])
+        """, email, hashed_password)
 
     return user_id
 

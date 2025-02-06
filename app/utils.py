@@ -3,7 +3,7 @@ from functools import wraps
 from typing import Callable
 from uuid import UUID
 
-from psqlpy import Connection
+from asyncpg import Connection
 from sanic import HTTPResponse, Request, json
 
 # TODO: we need to handle getting a connection here, ideally then pass the connection to the request
@@ -14,7 +14,7 @@ async def logged_in(conn: Connection, request: Request, *, session: bool = False
         passed_session = request.cookies.get("session")
         print(passed_session)
         if passed_session:
-            user_id = await conn.fetch_val("SELECT user_id FROM sessions WHERE token = $1", [UUID(passed_session)])
+            user_id = await conn.fetchval("SELECT user_id FROM sessions WHERE token = $1", UUID(passed_session))
             if user_id:
                 is_authorized = True
                 request.ctx.user_id = user_id
@@ -27,7 +27,7 @@ async def logged_in(conn: Connection, request: Request, *, session: bool = False
     return is_authorized
 
 
-def protected(*, session: bool = True, api_key: bool = True) -> Callable[[Callable], Callable[[Request, any, any], HTTPResponse]]:
+def protected(*, session: bool = True, api_key: bool = True):
     """
     Decorator to protect routes by checking for session or API key.
 
@@ -42,12 +42,11 @@ def protected(*, session: bool = True, api_key: bool = True) -> Callable[[Callab
     def decorator(f):
         @wraps(f)
         async def decorated_function(request, *args, **kwargs):
-            conn = await request.app.ctx.db_pool.connection()
-
-            is_authorized = await logged_in(conn, request, session=session, api_key=api_key)
+            async with request.app.ctx.db_pool.acquire() as conn:
+                is_authorized = await logged_in(conn, request, session=session, api_key=api_key)
 
             if is_authorized:
-                response = await f(request, conn, *args, **kwargs)
+                response = await f(request, *args, **kwargs)
                 return response
             else:
                 return json({"status": "not_authorized"}, 403)

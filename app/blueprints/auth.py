@@ -1,5 +1,5 @@
 from argon2 import PasswordHasher
-from psqlpy import Connection
+from asyncpg import Connection
 from sanic import Blueprint, HTTPResponse, Request, json, redirect
 from sanic_ext import render
 from ua_parser import user_agent_parser
@@ -19,11 +19,11 @@ async def login_user(conn: Connection, request: Request, user_id: int, email: st
 
     # don't add VALUES before the values, it breaks it
     # I have no idea why but this works
-    uuid = await conn.fetch_val("""
+    uuid = await conn.fetchval("""
         INSERT INTO sessions (token, user_id, ip, browser, os)
         (SELECT gen_random_uuid(), $1, $2, $3, $4)
         RETURNING token;
-    """, [user_id, request.ip, browser, os])
+    """, user_id, request.ip, browser, os)
 
     res = redirect("/")
     res.add_cookie(
@@ -56,20 +56,19 @@ async def signup(request):
         
         hashed_password = ph.hash(password)
 
-        connection = await request.app.ctx.db_pool.connection()
-        user_id = await connection.fetch_val("""
+        async with request.app.ctx.db_pool.acquire() as connection:
+            user_id = await connection.fetchval("""
             INSERT INTO users (email, password)
             VALUES ($1, $2)
             RETURNING id;
-        """, [email, hashed_password])
+            """, email, hashed_password)
 
-        
-        return await login_user(connection, request, user_id, email)
+            return await login_user(connection, request, user_id, email)
     
-@bp.route("/login", methods=["GET", "POST"])
+@bp.route("/signin", methods=["GET", "POST"])
 async def login(request):
     if request.method == "GET":
-        return await render("auth/login.jinja")
+        return await render("auth/signin.jinja")
 
     if request.method == "POST":
         email = request.form.get("email")
@@ -78,28 +77,27 @@ async def login(request):
         if email is None or password is None:
             return json({"message": "Email and password must be provided"}, 400)
 
-        connection = await request.app.ctx.db_pool.connection()
-        user = await connection.fetch_row("""
+        async with request.app.ctx.db_pool.acquire() as connection:
+            user = await connection.fetchrow("""
             SELECT id, password
             FROM users
             WHERE email = $1;
-        """, [email])
+            """, email)
 
-        if user is None or not ph.verify(user["password"], password):
-            return json({"message": "Invalid email or password"}, 400)
+            if user is None or not ph.verify(user["password"], password):
+                return json({"message": "Invalid email or password"}, 400)
 
-        return await login_user(connection, request, user["id"], email)
+            return await login_user(connection, request, user["id"], email)
     
 @bp.route("/settings")
 @protected(session=True)
-async def settings(request, conn):
-    user = await conn.fetch_row("""
-        SELECT email
-        FROM users
-        WHERE id = $1;
-    """, [request.ctx.user_id])
-
-    user = user.result()
+async def settings(request):
+    async with request.app.ctx.db_pool.acquire() as conn:
+        user = await conn.fetchrow("""
+            SELECT email
+            FROM users
+            WHERE id = $1;
+        """, request.ctx.user_id)
 
 
     return await render("auth/settings.jinja", context={"user": user})
