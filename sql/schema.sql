@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS api_keys (
     user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
     key TEXT NOT NULL, -- hashed so as not to be stored
-    title TEXT
-)
+    title TEXT NOT NULL
+);
 
 CREATE OR REPLACE FUNCTION delete_old_sessions() RETURNS TRIGGER AS $$
 BEGIN

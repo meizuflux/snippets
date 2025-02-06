@@ -12,7 +12,7 @@ async def main():
     args = parser.parse_args()
 
 
-    pool = await connect(dsn="postgres://postgres:test@localhost:5432/snippets")
+    conn = await connect(dsn="postgres://postgres:test@localhost:5432/snippets")
 
     if not args.file:
         print("You must specify a file")
@@ -23,11 +23,10 @@ async def main():
         with open(args.file, encoding="utf-8") as file:
             content = file.read()
 
-        async with pool.acquire() as connection:
-            await connection.execute(content)
+        await conn.execute(content)
 
 
-    pool.close()
+    await conn.close()
 
     print("Completed")
 
