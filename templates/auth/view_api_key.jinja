@@ -1,0 +1,12 @@
+{% extends "layout.jinja" %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <p>Here is your API key:</p>
+    <code>{{ api_key }}</code>
+    <p>
+        Note: For security reasons, this key will only be displayed this one time.
+        Please store it securely as it will not be shown again.
+    </p>
+    <a href="{{ url_for('auth.settings') }}" class="btn btn-primary">Back to Settings</a>
+{% endblock %}

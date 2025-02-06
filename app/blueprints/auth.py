@@ -1,3 +1,5 @@
+from secrets import choice
+from string import ascii_letters, digits
 from argon2 import PasswordHasher
 from asyncpg import Connection
 from sanic import Blueprint, HTTPResponse, Request, json, redirect
@@ -7,6 +9,11 @@ from ua_parser import user_agent_parser
 from app.utils import protected
 
 ph = PasswordHasher()
+
+API_KEY_VALID_CHARS = ascii_letters + digits
+
+def generate_api_key():
+    return"".join(choice(API_KEY_VALID_CHARS) for _ in range(128))
 
 
 bp = Blueprint("auth", url_prefix="/auth")
@@ -99,6 +106,43 @@ async def settings(request):
             WHERE id = $1;
         """, request.ctx.user_id)
 
+        api_keys = await conn.fetch(
+            """
+            SELECT title, created
+            FROM api_keys
+            WHERE user_id = $1
+            ORDER BY created DESC
+            """,
+            request.ctx.user_id
+        )
 
-    return await render("auth/settings.jinja", context={"user": user})
+    return await render("auth/settings.jinja", context={"user": user, "api_keys": api_keys})
+
+@bp.route("/create-api-key", methods=["POST"])
+@protected(session=True)
+async def create_api_key(request):
+
+
+    title = request.form.get("title")
+    if not title:
+        return json({"message": "Title is required"}, 400)
+
+    generated_key = generate_api_key()
+
+    async with request.app.ctx.db_pool.acquire() as conn:
+        api_key_id = await conn.fetchval(
+            """
+            INSERT INTO api_keys (user_id, title, key)
+            VALUES ($1, $2, $3)
+            RETURNING id;
+            """,
+            request.ctx.user_id,
+            title,
+            ph.hash(generated_key),
+        )
+
+    return await render("auth/view_api_key.jinja", context={
+        "api_key": f"{api_key_id}:{generated_key}",
+        "title": title,
+    })
         

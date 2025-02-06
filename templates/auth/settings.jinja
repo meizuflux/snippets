@@ -3,4 +3,28 @@
 {% block content %}
     <h1>Settings</h1>
     <p>Email: {{ user["email"] }}</p>
+
+    <form action="/auth/create-api-key" method="post">
+        <fieldset>
+            <legend>Create API Key</legend>
+            <div>
+                <label for="title">Title</label>
+                <input type="text" id="title" name="title" required>
+            </div>
+            <div>
+                <button type="submit">Create API Key</button>
+            </div>
+        </fieldset>
+    </form>
+
+    <h2>API Keys</h2>
+    {% if api_keys|length == 0 %}
+        <p>No API keys available.</p>
+    {% else %}
+        <ul>
+        {% for key in api_keys %}
+            <li>{{ key.title }} - Created {{ key.created }}</li>
+        {% endfor %}
+        </ul>
+    {% endif %}
 {% endblock %}

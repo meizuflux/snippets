@@ -3,6 +3,8 @@ from sanic.response import json, HTTPResponse
 from sanic.request import Request
 from sanic import Blueprint
 from argon2 import PasswordHasher
+
+from app.utils import protected
 # https://pypi.org/project/argon2-cffi/
 
 ph = PasswordHasher()
@@ -40,15 +42,22 @@ async def signup(request: Request) -> HTTPResponse:
 
     return json({"message": "User created"})
 
+# sample API key: Za-L6ffPDk%j4^RQbcBA-DcG0aVCc0C:uHX~vzB=dP%;B~21D9guelJj0PEU^pb7ojwfQ8GWwHd~lI22CwHzCDZ<@DTysb~HXTh:fUw+CYyh;k5UrH=Gi^jb?U;KKsB&feMEynrfmyWRQp?LN^!g&hIr@!RrUs@lxAw5@lF2wJKH%4>cJLHeFgbOMg9oJ9KhtK&FHI1%MfESYBja>zkQW?;
 @bp.route("/about")
+@protected(api_key=True)
 async def about(request: Request) -> HTTPResponse:
-    # this is gonna be api_key only?
-    # probably need to implement authentication middleware
+    async with request.app.ctx.db_pool.acquire() as conn:
+        user = await conn.fetchrow("""
+            SELECT id, email, joined
+            FROM users
+            WHERE id = $1;
+        """, request.ctx.user_id)
 
-    return json({
-        "username": "etc",
-        "email": "etc"
-    })
+        return json({
+            "id": user["id"],
+            "email": user["email"],
+            "joined": user["joined"].strftime("%Y-%m-%d %H:%M")
+        })
 
 @bp.route("/delete_user")
 async def delete_user(request: Request) -> HTTPResponse:

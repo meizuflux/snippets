@@ -3,8 +3,11 @@ from functools import wraps
 from typing import Callable
 from uuid import UUID
 
+from argon2 import PasswordHasher
 from asyncpg import Connection
 from sanic import HTTPResponse, Request, json
+
+ph = PasswordHasher()
 
 # TODO: we need to handle getting a connection here, ideally then pass the connection to the request
 async def logged_in(conn: Connection, request: Request, *, session: bool = False, api_key: bool = False) -> bool:
@@ -12,7 +15,7 @@ async def logged_in(conn: Connection, request: Request, *, session: bool = False
 
     if session:
         passed_session = request.cookies.get("session")
-        print(passed_session)
+        print("passed", passed_session)
         if passed_session:
             user_id = await conn.fetchval("SELECT user_id FROM sessions WHERE token = $1", UUID(passed_session))
             if user_id:
@@ -20,14 +23,20 @@ async def logged_in(conn: Connection, request: Request, *, session: bool = False
                 request.ctx.user_id = user_id
 
     if not is_authorized and api_key:
-        passed_api_key = request.headers.get("apiKey")
-        if passed_api_key:
-            is_authorized = await validate_api_key(passed_api_key)
+        passed_api_data = request.headers.get("apiKey")
+        if passed_api_data:
+            api_key_id, passed_api_key = passed_api_data.split(":")
 
+            if api_key_id.isdigit():
+                result = await conn.fetchrow("SELECT user_id, key FROM api_keys WHERE id = $1", int(api_key_id))
+                if result and ph.verify(result["key"], passed_api_key):
+                    is_authorized = True
+                    request.ctx.user_id = result["user_id"]
+                    
     return is_authorized
 
 
-def protected(*, session: bool = True, api_key: bool = True):
+def protected(*, session: bool = False, api_key: bool = False):
     """
     Decorator to protect routes by checking for session or API key.
 

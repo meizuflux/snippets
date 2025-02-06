@@ -8,13 +8,13 @@ async def before_request(request):
     #request.ctx.user = await fetch_user_by_token(request.token)
     ...
 
-async def before_startup(app, loop):
+async def before_startup(app):
     app.ctx.db_pool = await asyncpg.create_pool(
         dsn="postgres://postgres:test@localhost:5432/snippets",
     )
 
-async def after_shutdown(app, loop):
-    app.ctx.db_pool.close()
+async def after_shutdown(app):
+    await app.ctx.db_pool.close()
 
 def app_factory():
     app = Sanic(__name__)
