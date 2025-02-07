@@ -23,7 +23,7 @@ async def logged_in(conn: Connection, request: Request, *, session: bool = False
                 request.ctx.user_id = user_id
 
     if not is_authorized and api_key:
-        passed_api_data = request.headers.get("apiKey")
+        passed_api_data = request.headers.get("X-API-KEY")
         if passed_api_data:
             api_key_id, passed_api_key = passed_api_data.split(":")
 
